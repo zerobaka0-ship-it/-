@@ -1,0 +1,12 @@
+
+{
+  "name": "もなか図鑑",
+  "short_name": "もなか図鑑",
+  "description": "全国のもなかを記録する自分専用の図鑑",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fffaf1",
+  "theme_color": "#634532"
+}
