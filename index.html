@@ -1,0 +1,299 @@
+
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#634532">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="もなか図鑑">
+<link rel="manifest" href="./manifest.json">
+<title>もなか図鑑</title>
+<style>
+:root{--brown:#634532;--cream:#fffaf1;--ink:#35291f;--line:#e7d8c7;--green:#64876b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif}
+header{background:var(--brown);color:white;padding:24px 18px 20px}
+header h1{margin:0;font-size:27px}
+header p{margin:6px 0 0;color:#f0dfcf;font-size:12px}
+main{max-width:760px;margin:auto;padding:14px;padding-bottom:50px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.stat,.panel,.item{background:white;border:1px solid var(--line);border-radius:15px;padding:14px}
+.stat span{font-size:12px;color:#78695b}
+.stat strong{display:block;font-size:26px;margin-top:5px}
+h2{font-size:17px;margin:22px 0 10px}
+.hint{font-size:12px;color:#78695b;line-height:1.6}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.primary{border:0;background:var(--brown);color:white;padding:12px 15px;border-radius:10px;font-weight:600}
+.secondary{border:1px solid var(--line);background:white;color:var(--ink);padding:10px 12px;border-radius:10px}
+.danger{color:#a13030}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:#fffdf9;color:var(--ink)}
+label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}
+textarea{min-height:75px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{min-width:0}
+.row input{flex:1}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+#map{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+.pref{border:1px solid #e3d5c5;background:#fff;border-radius:7px;padding:9px 2px;font-size:11px;color:#57483a;min-height:43px}
+.pref.has{background:#64876b;color:white;border-color:#64876b}
+.pref.selected{outline:3px solid #c69b63;outline-offset:1px}
+#items{display:grid;gap:9px}
+.item h3{font-size:16px;margin:0 0 5px}
+.item p{font-size:12px;line-height:1.6;margin:4px 0;color:#66584a;white-space:pre-wrap}
+.item img{width:100%;max-height:220px;object-fit:contain;border-radius:9px;background:#faf4ea;margin:7px 0}
+.item .actions{display:flex;gap:7px;margin-top:10px}
+.item .actions button{flex:1}
+.empty{padding:20px;text-align:center;color:#78695b;font-size:13px}
+dialog{border:0;border-radius:17px;width:calc(100% - 24px);max-width:560px;max-height:90vh;overflow:auto;padding:20px;background:var(--cream);color:var(--ink)}
+dialog::backdrop{background:#24180dcc}
+.dialog-actions{display:flex;gap:8px;margin-top:16px}
+.dialog-actions button{flex:1}
+footer{font-size:11px;color:#88796b;text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>もなか図鑑</h1>
+<p>全国のもなか、食べ歩き記録。</p>
+</header>
+<main>
+<div class="stats">
+ <div class="stat"><span>登録した商品</span><strong id="total">0</strong></div>
+ <div class="stat"><span>食べた都道府県</span><strong id="prefTotal">0 / 47</strong></div>
+</div>
+
+<h2>日本全国の記録</h2>
+<p class="hint">記録した都道府県は緑色になります。県名を押すと、その県の登録商品に絞り込めます。</p>
+<div id="map" aria-label="都道府県選択"></div>
+<div class="toolbar">
+ <button class="secondary" id="allPrefs">全国を表示</button>
+ <button class="primary" id="add">＋ 商品を登録</button>
+</div>
+
+<h2 id="listTitle">登録したもなか</h2>
+<input id="search" placeholder="商品名・店名で検索">
+<div class="toolbar">
+ <select id="sort" aria-label="並べ替え">
+  <option value="new">登録が新しい順</option>
+  <option value="name">商品名順</option>
+  <option value="pref">都道府県順</option>
+ </select>
+</div>
+<div id="items"></div>
+
+<h2>データのバックアップ</h2>
+<div class="panel">
+ <p class="hint">機種変更やブラウザのデータ消去に備えて、定期的にバックアップを保存してください。</p>
+ <div class="toolbar">
+  <button class="primary" id="export">バックアップを書き出す</button>
+  <button class="secondary" id="importBtn">バックアップを復元</button>
+  <input id="importFile" type="file" accept=".json,application/json" hidden>
+ </div>
+ <p class="hint">写真もバックアップに含まれます。ファイルは個人用の安全な場所に保管してください。</p>
+</div>
+<footer>データはこの端末のブラウザ内に保存されます。</footer>
+</main>
+
+<dialog id="editor">
+<form id="form">
+<h2 id="formTitle">もなかを登録</h2>
+<input id="editId" type="hidden">
+<label for="name">商品名 *</label>
+<input id="name" required maxlength="100" placeholder="例：○○最中">
+<label for="pref">都道府県 *</label>
+<select id="pref" required></select>
+<label for="shop">店名・メーカー</label>
+<input id="shop" maxlength="100" placeholder="例：○○菓子店">
+<label for="date">食べた日</label>
+<input id="date" type="date">
+<label for="price">価格（円）</label>
+<input id="price" type="number" min="0" max="9999999" inputmode="numeric">
+<label for="photo">写真</label>
+<input id="photo" type="file" accept="image/*">
+<img id="preview" alt="写真プレビュー" hidden style="width:100%;max-height:220px;object-fit:contain;margin-top:8px">
+<label for="memo">感想・メモ</label>
+<textarea id="memo" maxlength="2000" placeholder="味、餡、皮、購入場所など"></textarea>
+<p class="hint">同じ商品は重複登録せず、既存の商品を編集してください。</p>
+<div class="dialog-actions">
+<button type="button" class="secondary" id="cancel">キャンセル</button>
+<button type="submit" class="primary">保存</button>
+</div>
+</form>
+</dialog>
+
+<script>
+const PREFS=[
+"北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+"茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+"新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県","静岡県","愛知県",
+"三重県","滋賀県","京都府","大阪府","兵庫県","奈良県","和歌山県",
+"鳥取県","島根県","岡山県","広島県","山口県",
+"徳島県","香川県","愛媛県","高知県",
+"福岡県","佐賀県","長崎県","熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+];
+const KEY="monaka-zukan-v1";
+let records=[];
+let selectedPref="";
+let photoData="";
+const $=id=>document.getElementById(id);
+const map=$("map"), editor=$("editor");
+
+function load(){
+ try{
+  const raw=localStorage.getItem(KEY);
+  const parsed=raw?JSON.parse(raw):[];
+  records=Array.isArray(parsed)?parsed:[];
+ }catch(e){records=[];alert("保存データを読み込めませんでした。バックアップがあれば復元してください。")}
+}
+function persist(){
+ try{localStorage.setItem(KEY,JSON.stringify(records));return true}
+ catch(e){alert("保存容量が不足している可能性があります。写真を小さくするか、バックアップを取って不要な写真を減らしてください。");return false}
+}
+function escapeHTML(s){
+ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function initPrefs(){
+ $("pref").innerHTML=PREFS.map(p=>`<option>${p}</option>`).join("");
+ // 初期版は地域順の選択パネル。実際の境界線付き地図ではありません。
+ map.innerHTML=PREFS.map(p=>`<button class="pref" data-pref="${p}">${p}</button>`).join("");
+ map.addEventListener("click",e=>{
+  const b=e.target.closest("button[data-pref]");
+  if(!b)return;
+  selectedPref=selectedPref===b.dataset.pref?"":b.dataset.pref;
+  render();
+ });
+}
+function render(){
+ const visited=new Set(records.map(r=>r.pref));
+ map.querySelectorAll("button").forEach(b=>{
+  b.classList.toggle("has",visited.has(b.dataset.pref));
+  b.classList.toggle("selected",selectedPref===b.dataset.pref);
+ });
+ $("total").textContent=records.length;
+ $("prefTotal").textContent=visited.size+" / 47";
+ $("listTitle").textContent=selectedPref?selectedPref+"のもなか":"登録したもなか";
+ const q=$("search").value.trim().toLowerCase();
+ let list=records.filter(r=>(!selectedPref||r.pref===selectedPref)&&
+  [r.name,r.shop,r.pref,r.memo].join(" ").toLowerCase().includes(q));
+ if($("sort").value==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"ja"));
+ else if($("sort").value==="pref")list.sort((a,b)=>a.pref.localeCompare(b.pref,"ja"));
+ else list.sort((a,b)=>(b.updated||"").localeCompare(a.updated||""));
+ $("items").innerHTML=list.length?list.map(r=>`
+ <article class="item">
+  <h3>${escapeHTML(r.name)}</h3>
+  <p>${escapeHTML(r.pref)}${r.shop?" · "+escapeHTML(r.shop):""}</p>
+  ${r.photo?`<img src="${r.photo}" alt="${escapeHTML(r.name)}の写真">`:""}
+  <p>${r.date?"食べた日："+escapeHTML(r.date):""}${r.price!==""&&r.price!=null?"　価格："+escapeHTML(r.price)+"円":""}</p>
+  ${r.memo?`<p>${escapeHTML(r.memo)}</p>`:""}
+  <div class="actions">
+   <button class="secondary" data-edit="${r.id}">編集</button>
+   <button class="secondary danger" data-delete="${r.id}">削除</button>
+  </div>
+ </article>`).join(""):'<div class="empty">まだ記録がありません。最初のもなかを登録しましょう。</div>';
+}
+function openEditor(r=null){
+ $("form").reset();
+ $("editId").value=r?.id||"";
+ $("formTitle").textContent=r?"もなかを編集":"もなかを登録";
+ $("name").value=r?.name||"";
+ $("pref").value=r?.pref||selectedPref||"福島県";
+ $("shop").value=r?.shop||"";
+ $("date").value=r?.date||new Date().toISOString().slice(0,10);
+ $("price").value=r?.price??"";
+ $("memo").value=r?.memo||"";
+ photoData=r?.photo||"";
+ $("preview").hidden=!photoData;
+ $("preview").src=photoData;
+ $("photo").value="";
+ editor.showModal();
+}
+$("add").onclick=()=>openEditor();
+$("cancel").onclick=()=>editor.close();
+$("allPrefs").onclick=()=>{selectedPref="";render()};
+$("search").oninput=render;
+$("sort").onchange=render;
+$("items").addEventListener("click",e=>{
+ const ed=e.target.closest("[data-edit]");
+ const del=e.target.closest("[data-delete]");
+ if(ed){const r=records.find(x=>x.id===ed.dataset.edit);if(r)openEditor(r)}
+ if(del){
+  const r=records.find(x=>x.id===del.dataset.delete);
+  if(r&&confirm("「"+r.name+"」を削除しますか？")){
+   records=records.filter(x=>x.id!==r.id);
+   if(persist())render();
+  }
+ }
+});
+$("photo").onchange=async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ if(!file.type.startsWith("image/")){alert("画像ファイルを選択してください");return}
+ try{
+  photoData=await compressImage(file);
+  $("preview").src=photoData;$("preview").hidden=false;
+ }catch(err){alert("写真を読み込めませんでした")}
+};
+function compressImage(file){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onerror=reject;
+  reader.onload=()=>{
+   const img=new Image();
+   img.onerror=reject;
+   img.onload=()=>{
+    const scale=Math.min(1,900/Math.max(img.width,img.height));
+    const canvas=document.createElement("canvas");
+    canvas.width=Math.max(1,Math.round(img.width*scale));
+    canvas.height=Math.max(1,Math.round(img.height*scale));
+    canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+    resolve(canvas.toDataURL("image/jpeg",.72));
+   };
+   img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+ });
+}
+$("form").onsubmit=e=>{
+ e.preventDefault();
+ const name=$("name").value.trim();
+ if(!name)return;
+ const id=$("editId").value||crypto.randomUUID();
+ const duplicate=records.find(r=>r.name.trim().toLowerCase()===name.toLowerCase()&&r.pref===$("pref").value&&r.id!==id);
+ if(duplicate&&!confirm("同じ商品名・都道府県の商品が登録済みです。別商品として保存しますか？"))return;
+ const old=records.find(r=>r.id===id);
+ const record={id,name,pref:$("pref").value,shop:$("shop").value.trim(),
+  date:$("date").value,price:$("price").value,memo:$("memo").value.trim(),
+  photo:photoData,updated:new Date().toISOString(),created:old?.created||new Date().toISOString()};
+ const index=records.findIndex(r=>r.id===id);
+ if(index>=0)records[index]=record;else records.push(record);
+ if(persist()){selectedPref=record.pref;editor.close();render()}
+};
+$("export").onclick=()=>{
+ const blob=new Blob([JSON.stringify({version:1,records},null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=url;a.download="monaka-zukan-backup.json";a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
+$("importBtn").onclick=()=>$("importFile").click();
+$("importFile").onchange=async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  const obj=JSON.parse(await file.text());
+  if(!obj||!Array.isArray(obj.records)||!confirm("現在のデータをバックアップの内容で置き換えますか？"))return;
+  if(!obj.records.every(r=>r&&typeof r.name==="string"&&PREFS.includes(r.pref)&&typeof r.id==="string"))throw Error("invalid");
+  const previous=records;
+  records=obj.records;
+  if(persist()){selectedPref="";render();alert("バックアップを復元しました")}
+  else records=previous;
+ }catch(err){alert("バックアップを読み込めません。正しいJSONファイルを選んでください")}
+ finally{e.target.value=""}
+};
+if("serviceWorker" in navigator){
+ window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
+}
+initPrefs();load();render();
+</script>
+</body>
+</html>
