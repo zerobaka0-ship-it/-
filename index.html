@@ -295,5 +295,69 @@ if("serviceWorker" in navigator){
 }
 initPrefs();load();render();
 </script>
+
+<section id="jumbo-counter" style="margin:20px 0;padding:16px;border:1px solid #ddd;border-radius:16px;background:#fff;color:#222;">
+  <h2>🍦 ジャンボ累計カウンター</h2>
+  <p>2種類のジャンボを食べた回数を記録！</p>
+
+  <div style="padding:14px;margin:12px 0;background:#fff0e8;border-radius:12px;">
+    <h3>🍫 チョコモナカジャンボ</h3>
+    <p style="font-size:30px;font-weight:bold;margin:8px 0;">
+      <span id="choco-count">0</span>
+      <small style="font-size:14px;"> / 9,999回</small>
+    </p>
+    <button type="button" onclick="changeJumboCount('choco',1)">＋1 食べた</button>
+    <button type="button" onclick="changeJumboCount('choco',-1)">−1 訂正</button>
+  </div>
+
+  <div style="padding:14px;margin:12px 0;background:#fff8d9;border-radius:12px;">
+    <h3>🥛 バニラモナカジャンボ</h3>
+    <p style="font-size:30px;font-weight:bold;margin:8px 0;">
+      <span id="vanilla-count">0</span>
+      <small style="font-size:14px;"> / 9,999回</small>
+    </p>
+    <button type="button" onclick="changeJumboCount('vanilla',1)">＋1 食べた</button>
+    <button type="button" onclick="changeJumboCount('vanilla',-1)">−1 訂正</button>
+  </div>
+
+  <p>合計：<strong><span id="jumbo-total">0</span> 回</strong></p>
+</section>
+
+<script>
+(function () {
+  const KEY = 'jumboCounters_v1';
+  let counts = { choco: 0, vanilla: 0 };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (saved) {
+      for (const key of ['choco', 'vanilla']) {
+        const n = Number(saved[key]);
+        if (Number.isFinite(n)) {
+          counts[key] = Math.max(0, Math.min(9999, Math.floor(n)));
+        }
+      }
+    }
+  } catch (_) {}
+
+  window.changeJumboCount = function (type, delta) {
+    if (!(type in counts)) return;
+    counts[type] = Math.max(0, Math.min(9999, counts[type] + delta));
+    localStorage.setItem(KEY, JSON.stringify(counts));
+    render();
+  };
+
+  function render() {
+    document.getElementById('choco-count').textContent =
+      counts.choco.toLocaleString('ja-JP');
+    document.getElementById('vanilla-count').textContent =
+      counts.vanilla.toLocaleString('ja-JP');
+    document.getElementById('jumbo-total').textContent =
+      (counts.choco + counts.vanilla).toLocaleString('ja-JP');
+  }
+
+  render();
+})();
+</script>
 </body>
 </html>
